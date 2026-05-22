@@ -30,13 +30,13 @@ int sensorIdx = 0;
 int iterationCount = 0;    // new counter to track total iterations
 
 // Stepper motor pins and settings with connection labels for ESP32
-const int dirPin  = 5;  // Connect Stepper Direction to GPIO5/D5
-const int stepPin = 4;  // Connect Stepper Step to GPIO4/D4
+const int dirPin  = 4;  // Connect Stepper Direction to GPIO4/D4
+const int stepPin = 16;  // Connect Stepper Step to GPIO16/D16
 int motorSpeed = 600;  // Delay in microseconds between steps
 
 // New definitions for buttons with connection labels
-#define BUTTON_PIN_1 13    // Changed from GPIO15 to GPIO13 to avoid strapping pin
-#define BUTTON_PIN_2 14    // Changed from GPIO16 (unavailable) to GPIO14 
+#define BUTTON_PIN_1 19    // Bottom / Sinking limit
+#define BUTTON_PIN_2 18    // Top / Floating limit
 
 // Mutex for protecting shared resources
 SemaphoreHandle_t dataLock = NULL;
