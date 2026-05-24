@@ -1,3 +1,5 @@
+//Tests for suck in water until depth changes then the stepper motor stop reset back to the float
+
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include <WebServer.h>

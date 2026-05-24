@@ -1,6 +1,4 @@
-## Printing out serial port testing button
-
-
+// Printing out serial port testing button
 #if 0
 #define BUTTON_PIN_1 13    // Bottom limit switch
 #define BUTTON_PIN_2 14    // Top limit switch
