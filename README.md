@@ -37,12 +37,12 @@ Remark:
 - MS5837 SCL → GPIO22 (D22) [GREEN cable]
 
 ### Stepper Motor
-- Direction Pin → GPIO5 (D5) (BLUE)
-- Step Pin → GPIO4 (D4) (GREEN)
+- Direction Pin → GPIO4 (D4) (BLUE)
+- Step Pin → GPIO16 (D16) (GREEN)
 
 ### Buttons/Switches
-- Bottom Limit Switch → GPIO13 (D13) (Button TOP)
-- Top Limit Switch → GPIO14 (D14) (Button Bottom)
+- Bottom Limit Switch (Bottom / Sinking limit) → GPIO19 (D19)
+- Top Limit Switch (Top / Floating limit) → GPIO18 (D18)
 
 
 ## WiFi Setup
