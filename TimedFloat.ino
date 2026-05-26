@@ -26,7 +26,9 @@
   volatile bool motorBusy = false;
   volatile bool stopMotor = false;
   volatile bool isExpelling = false;
-  volatile bool isUpThenDown = false;
+  volatile bool isTimedSequence = false;
+
+  const unsigned long TIMED_WAIT_MS = 30000;
 
   void stepMotor() {
     digitalWrite(stepPin, HIGH);
@@ -46,31 +48,31 @@
 
   void moveDownWithPressureMonitor() {
     digitalWrite(dirPin, HIGH);  // Set direction to DOWN
-
+    
     int initialPressure = readAveragePressure();
     Serial.print("Initial Pressure: ");
     Serial.println(initialPressure);
-
+    
     stopMotor = false;
-
+    
     // Move down until lower limit is hit or pressure changes suddenly
     while (!stopMotor && digitalRead(BUTTON_PIN_1) == HIGH) {
       stepMotor();
-
+      
       // Check pressure periodically (every 50 steps)
       static int stepCount = 0;
       stepCount++;
-
+      
       if (stepCount >= 50) {
         stepCount = 0;
         int currentPressure = readAveragePressure();
         int pressureDelta = abs(currentPressure - initialPressure);
-
+        
         Serial.print("Current Pressure: ");
         Serial.print(currentPressure);
         Serial.print(" | Delta: ");
         Serial.println(pressureDelta);
-
+        
         // Stop if pressure changed suddenly
         if (pressureDelta > PRESSURE_THRESHOLD) {
           Serial.println("Sudden pressure change detected - stopping motor!");
@@ -78,50 +80,34 @@
           break;
         }
       }
-
+      
       ArduinoOTA.handle();
       delay(1);
     }
-
+    
     Serial.println("Motor stopped.");
   }
 
   void expelWater() {
     digitalWrite(dirPin, LOW);  // Set direction to UP (expel water)
-
+    
     Serial.println("Expelling water...");
-
+    
     // Move up until upper limit is hit
     while (digitalRead(BUTTON_PIN_2) == HIGH) {
       stepMotor();
       ArduinoOTA.handle();
       delay(1);
     }
-
+    
     Serial.println("Water expelled. Motor at upper limit.");
   }
 
-  void moveUpForTenSecondsThenDownUntilButtonHit() {
-    Serial.println("Moving up for 10 seconds...");
-    digitalWrite(dirPin, LOW);  // Set direction to UP
-
-    stopMotor = false;
-
-    unsigned long startMove = millis();
-    while (!stopMotor && (millis() - startMove < 10000UL)) {
-      stepMotor();
-      ArduinoOTA.handle();
-      server.handleClient();
-      delay(1);
-    }
-
-    if (stopMotor) {
-      Serial.println("Upward move cancelled.");
-      return;
-    }
-
-    Serial.println("Moving down until lower limit is hit...");
+  void moveDownUntilLowerLimit() {
     digitalWrite(dirPin, HIGH);  // Set direction to DOWN
+
+    Serial.println("Moving down until lower limit...");
+    stopMotor = false;
 
     while (!stopMotor && digitalRead(BUTTON_PIN_1) == HIGH) {
       stepMotor();
@@ -130,7 +116,42 @@
       delay(1);
     }
 
-    Serial.println("Up-then-down sequence complete.");
+    Serial.println("Lower limit reached.");
+  }
+
+  void waitAtDepth(unsigned long waitMs) {
+    Serial.println("Waiting 30 seconds at depth...");
+
+    unsigned long startWait = millis();
+    while (!stopMotor && (millis() - startWait < waitMs)) {
+      ArduinoOTA.handle();
+      server.handleClient();
+      delay(10);
+    }
+
+    if (stopMotor) {
+      Serial.println("Timed wait cancelled.");
+    } else {
+      Serial.println("Timed wait complete.");
+    }
+  }
+
+  void runTimedFloatSequence() {
+    stopMotor = false;
+
+    moveDownUntilLowerLimit();
+    if (stopMotor) {
+      motorBusy = false;
+      return;
+    }
+
+    waitAtDepth(TIMED_WAIT_MS);
+    if (stopMotor) {
+      motorBusy = false;
+      return;
+    }
+
+    expelWater();
   }
 
   String renderPage() {
@@ -140,7 +161,7 @@
     html += motorBusy ? "<p>Status: Moving</p>" : "<p>Status: Idle</p>";
     html += "<p><a href='/start'><button style='background-color:#4CAF50;color:white;'>Move Down (Fill)</button></a></p>";
     html += "<p><a href='/expel'><button style='background-color:#FF6B6B;color:white;'>Expel Water (Reset)</button></a></p>";
-    html += "<p><a href='/updown'><button style='background-color:#2D9CDB;color:white;'>Up 10s, Then Down</button></a></p>";
+    html += "<p><a href='/timed'><button style='background-color:#2D9CDB;color:white;'>Timed Float Sequence</button></a></p>";
     html += "</body></html>";
     return html;
   }
@@ -154,7 +175,6 @@
       motorBusy = true;
       stopMotor = false;
       isExpelling = false;
-      isUpThenDown = false;
     } else {
       stopMotor = true;
     }
@@ -165,17 +185,16 @@
     if (!motorBusy) {
       motorBusy = true;
       isExpelling = true;
-      isUpThenDown = false;
     }
     server.send(200, "text/html", renderPage());
   }
 
-  void handleUpThenDown() {
+  void handleTimedFloat() {
     if (!motorBusy) {
       motorBusy = true;
       stopMotor = false;
       isExpelling = false;
-      isUpThenDown = true;
+      isTimedSequence = true;
     } else {
       stopMotor = true;
     }
@@ -199,7 +218,7 @@
     server.on("/", handleRoot);
     server.on("/start", handleWiFiStart);
     server.on("/expel", handleExpel);
-    server.on("/updown", handleUpThenDown);
+    server.on("/timed", handleTimedFloat);
     server.begin();
   }
 
@@ -208,9 +227,9 @@
     server.handleClient();
 
     if (motorBusy) {
-      if (isUpThenDown) {
-        moveUpForTenSecondsThenDownUntilButtonHit();
-        isUpThenDown = false;
+      if (isTimedSequence) {
+        runTimedFloatSequence();
+        isTimedSequence = false;
       } else if (isExpelling) {
         expelWater();
         isExpelling = false;
